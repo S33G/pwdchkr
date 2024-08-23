@@ -1,0 +1,18 @@
+{
+    "ServiceA": [
+      {
+        "username": "user1",
+        "secret": "JBSWY3DPEHPKPXP"
+      },
+      {
+        "username": "user2",
+        "secret": "JBSWY3DPEHPK3PXP"
+      }
+    ],
+    "ServiceB": [
+      {
+        "username": "user3",
+        "secret": "JBSWY3DPEHPK3PXP"
+      }
+    ]
+}
