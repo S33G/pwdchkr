@@ -59,7 +59,6 @@ program
 
       Object.entries(data).forEach(([serviceName, serviceData]) => {
         if (serviceName.toLowerCase() === secretId.toLowerCase()) {
-          console.log(serviceData);
           serviceData.forEach(({ username, secret }) => {
             const currentTotp = totp.generate(secret);
             const nextTotp = totp.generate(secret);
