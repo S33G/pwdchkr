@@ -4,40 +4,47 @@ import { Command } from 'commander';
 import { totp } from 'otplib';
 import { ServiceData as SecretsJson, AlfredFormat, JsonFormat } from './types';
 import { dataTransformer } from './transformer';
-import { parseSecrets } from './secrets';
+import { parseSecrets, Secret } from './secrets';
 import { OutputTypes as OutputFormat } from './types';
-import * as figlet from 'figlet';
-import { logga } from './logga';
+import { logger } from './logger';
 
 const DB_FILE = path.join(process.env.HOME || '', '.local', 'share', 'ente-totp', 'db.json');
 
 const program = new Command();
 
+type SecretResult = Omit<Secret, 'issuer'>
+
+const result: Record<string, SecretResult[]> = {};
+
 program
   .command('import <file>')
   .description('Import secrets from a file')
   .action((file: string) => {
-    const secrets: SecretsJson = {};
+    const rawSecrets = parseSecrets(file);
 
-    parseSecrets(file).forEach(([serviceName, username, secret]) => {
-      if (!secrets[serviceName]) {
-        secrets[serviceName] = [];
-      }
+    rawSecrets.forEach((data) => {
+      const item = {
+        secret: data.secret,
+        username: data.username
+      };
 
-      secrets[serviceName].push({ username, secret });
+      if (data.issuer in result) {
+        result[data.issuer].push(item);
+      } else {
+        result[data.issuer] = [item];
+      };
     });
 
     try {
       fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
-      fs.writeFileSync(DB_FILE, JSON.stringify(secrets, null, 2));
+      fs.writeFileSync(DB_FILE, JSON.stringify(result));
       console.log('Secrets imported.');
       console.debug('Database path:', DB_FILE);
-    }
-    catch (error) {
+    } catch (error) {
       console.error((error as Error).message);
     }
   });
-program.addHelpText('before', figlet.textSync('PWDCHKR', { horizontalLayout: 'full' }));
+
 
 // Get command
 program
@@ -51,10 +58,10 @@ program
       const data: SecretsJson = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
 
       Object.entries(data).forEach(([serviceName, serviceData]) => {
-        if (serviceName.toLowerCase().includes(secretId.toLowerCase())) {
+        if (serviceName.toLowerCase() === secretId.toLowerCase()) {
           serviceData.forEach(({ username, secret }) => {
             const currentTotp = totp.generate(secret);
-            const nextTotp = totp.generate(secret); // TOTP tokens are generally time-based, so "nextTotp" might not need to be generated separately
+            const nextTotp = totp.generate(secret);
             const formattedData = dataTransformer(
               serviceName,
               username,
@@ -62,6 +69,7 @@ program
               nextTotp,
               options.output_format
             );
+
             if (formattedData) {
               items.push(formattedData);
             }
@@ -70,7 +78,7 @@ program
       });
     } catch (err: any) {
       if (err.message.includes('no such file or directory')) {
-        return logga.error('Database not found. Please import secrets first.');
+        return logger.error('Database not found. Please import secrets first.');
       }
 
       console.log(JSON.stringify({ items: [], error: (err as Error).message }, null, 4));
@@ -89,10 +97,10 @@ program.addCommand(
     .action(() => {
       try {
         const data: SecretsJson = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-        logga.info(JSON.stringify(data, null, 4));
+        logger.info(JSON.stringify(data, null, 4));
       } catch (err: any) {
         if (err.message.includes('no such file or directory')) {
-          return logga.error('Database not found. Please import secrets first.');
+          return logger.error('Database not found. Please import secrets first.');
         }
       }
     })
