@@ -1,25 +1,44 @@
 import * as fs from 'fs';
+import * as URLParse from 'url-parse';
+import { URLSearchParams } from 'url';
 
-export const parseSecrets = (filePath: string = 'secrets.txt') : [string, string, string][] => {
-    const secretsList: [string, string, string][] = [];
 
-    const data = fs.readFileSync(filePath, 'utf8').split('\n');
-    // @ts-ignore
-    data.forEach(line => {
-        line = line.trim();
-        if (line) {
-            line = line.replace('sha', 'SHA').split('codeDisplay')[0].slice(0, -1);
-            try {
-                const [serviceName, username, secret] = line.split(':'); // Adjust as needed
-                if (secret) {
-                    secretsList.push([serviceName, username, secret]);
-                }
-            } catch {
-                // Handle parse errors or invalid URIs
-                console.error('Error parsing line:', line);
-            }
-        }
-    });
+export interface Secret {
+  issuer: string;
+  username: string;
+  secret: string;
+};
 
-    return secretsList;
+export const parseSecrets = (filePath: string = 'secrets.txt'): Secret[] => {
+  const secretsList: Secret[] = [];
+
+  const data = fs.readFileSync(filePath, 'utf8').split('\n');
+
+  data.forEach(line => {
+    line = line.trim(); // Remove whitespace
+
+    if (line) {
+      try {
+        const url = new URLParse(line);
+
+        const queryParams = new URLSearchParams(url.query);
+        const issuer = queryParams.get('issuer')?.replace(/%20/g, ' ') ?? ''; // ? optional chaining to ensure the value is not null
+        const secret = queryParams.get('secret') ?? '';
+
+        const username = url.pathname.split(/:|3\?|\%3A/)[1].replace(/^\//, '')?.replace(/%20/g, ' ');
+
+        secretsList.push({
+          issuer,
+          username: username ?? issuer,
+          secret
+        });
+
+      } catch (error) {
+        console.error('Error parsing line:', line);
+      }
+    }
+  });
+
+  return secretsList;
 }
+
