@@ -4,6 +4,7 @@ export const dataTransformer = (
   serviceName: string,
   username: string,
   currentTotp: string,
+  currentTotpTimeRemaining: number,
   nextTotp: string,
   outputType: OutputTypes,
 ): AlfredFormat | JsonFormat | null => {
@@ -22,6 +23,7 @@ export const dataTransformer = (
     return {
       service_name: serviceName,
       current_totp: currentTotp,
+      current_totp_time_remaining: currentTotpTimeRemaining,
       next_totp: nextTotp,
       service_data: subset,
     };

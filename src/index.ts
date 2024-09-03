@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { Command } from 'commander';
-import { totp } from 'otplib';
+import * as OTPAuth from "otpauth";
 import { ServiceData as SecretsJson, AlfredFormat, JsonFormat } from './types';
 import { dataTransformer } from './transformer';
 import { parseSecrets, Secret } from './secrets';
@@ -60,12 +60,17 @@ program
       Object.entries(data).forEach(([serviceName, serviceData]) => {
         if (serviceName.toLowerCase() === secretId.toLowerCase()) {
           serviceData.forEach(({ username, secret }) => {
-            const currentTotp = totp.generate(secret);
-            const nextTotp = totp.generate(secret);
+
+            const totp = new OTPAuth.TOTP({ secret: secret });
+
+            const currentTotp = totp.generate();
+            const currentTotpTimeRemaining = totp.period - (Math.floor(Date.now() / 1000) % totp.period);
+            const nextTotp = totp.generate({ timestamp: Date.now() + (30 * 1000) });
             const formattedData = dataTransformer(
               serviceName,
               username,
               currentTotp,
+              currentTotpTimeRemaining,
               nextTotp,
               options.output_format
             );
